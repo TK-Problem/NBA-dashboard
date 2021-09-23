@@ -16,9 +16,10 @@ navbar = dbc.NavbarSimple(
 footer = html.Footer(
     dbc.Row(
         dbc.Col(
-            html.Div("Footer text place holder"),
+            html.Div("Footer text place holder",
+                     style={'textAlign': 'center'}),
             width={"size": 6, "offset": 3},
         )
     ),
+    className='card text-white bg-primary mb-3'
 )
-
