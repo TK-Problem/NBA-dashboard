@@ -3,10 +3,10 @@ from dash import html
 from dash.dependencies import Input, Output
 
 from app import app
-from utils import nav_bar
+from utils import navbar, footer
 
 layout = html.Div([
-    nav_bar(),
+    navbar,
     html.H3('Team Games'),
     dcc.Dropdown(
         id='app-2-dropdown',
@@ -17,12 +17,13 @@ layout = html.Div([
         ]
     ),
     html.Div(id='app-2-display-value'),
-    dcc.Link('Go to App 1', href='/player-games')
+    dcc.Link('Go to App 1', href='/player-games'),
+    footer
 ])
 
 
 @app.callback(
-    Output('app-2-display-value', 'children'),
+    Output(component_id='app-2-display-value', component_property='children'),
     Input('app-2-dropdown', 'value'))
 def display_value(value):
     return 'You have selected "{}"'.format(value)

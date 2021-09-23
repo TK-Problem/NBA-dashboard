@@ -1,22 +1,24 @@
-from dash import dcc
+import dash_bootstrap_components as dbc
 from dash import html
 
+navbar = dbc.NavbarSimple(
+    children=[
+        dbc.NavItem(dbc.NavLink("Player-Games", href="/player-games")),
+        dbc.NavItem(dbc.NavLink("Team-Games", href="/team-games")),
+    ],
+    className='navbar navbar-expand-lg navbar-dark bg-primary',
+    brand="NBA-dashboard",
+    color="primary",
+    dark=True,
+)
 
-# navigation bar
-def nav_bar():
-    menu = html.Div(
-        [
-            dcc.Link(
-                "Player-Games",
-                href="/player-games",
-                className="tab first",
-            ),
-            dcc.Link(
-                "Team-Games",
-                href="/team-games",
-                className="tab",
-            ),
-        ],
-        className="row all-tabs",
-    )
-    return menu
+
+footer = html.Footer(
+    dbc.Row(
+        dbc.Col(
+            html.Div("Footer text place holder"),
+            width={"size": 6, "offset": 3},
+        )
+    ),
+)
+
