@@ -3,8 +3,8 @@ from dash import html
 
 navbar = dbc.NavbarSimple(
     children=[
-        dbc.NavItem(dbc.NavLink("Player-Games", href="/player-games")),
-        dbc.NavItem(dbc.NavLink("Team-Games", href="/team-games")),
+        dbc.NavItem(dbc.NavLink("Players", href="/player-games")),
+        dbc.NavItem(dbc.NavLink("Teams", href="/team-games")),
     ],
     className='navbar navbar-expand-lg navbar-dark bg-primary',
     brand="NBA-dashboard",

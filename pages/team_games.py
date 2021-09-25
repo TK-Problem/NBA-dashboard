@@ -7,23 +7,13 @@ from utils import navbar, footer
 
 layout = html.Div([
     navbar,
-    html.H3('Team Games'),
+    html.Label('Team Games'),
     dcc.Dropdown(
         id='app-2-dropdown',
-        options=[
-            {'label': 'App 2 - {}'.format(i), 'value': i} for i in [
-                'NYC', 'MTL', 'LA'
-            ]
-        ]
+        options=[{'label': '{}'.format(i), 'value': i} for i in ['Team 1', 'Team 2', 'Team 3']]
     ),
     html.Div(id='app-2-display-value'),
     dcc.Link('Go to App 1', href='/player-games'),
     footer
 ])
 
-
-@app.callback(
-    Output(component_id='app-2-display-value', component_property='children'),
-    Input('app-2-dropdown', 'value'))
-def display_value(value):
-    return 'You have selected "{}"'.format(value)
