@@ -97,73 +97,108 @@ def clean_df(df):
     return df
 
 
+# data selection card
+card_data = dbc.Card([
+    dbc.CardBody([
+        html.H4('Data selection', className="card-title"),
+
+        dcc.Dropdown(
+            id='player-id-drop',
+            options=id_dict,
+            value='player_id',
+            clearable=False,
+            placeholder="Select player"
+            ),
+
+        dcc.Dropdown(
+            id='player-years-drop',
+            options=[],
+            value='year',
+            clearable=False,
+            placeholder="Select player"
+            ),
+    ])
+])
+
+# player info card
+card_p_info = dbc.Fade(
+    dbc.Card([
+        dbc.Row([
+
+            dbc.Col(html.Img(id='player-photo', src=''), align="center", sm=3),
+
+            dbc.Col([
+                html.H4(children="", id="card-title-player-name", className="card-title"),
+                dcc.Markdown(children="", id='player-text-info')
+            ], sm=7),
+        ], justify="center"),
+    ]),
+    id="card-title-player-info-fade",
+    is_in=False,
+    appear=False
+)
+
+# player season stats card
+card_p_seasons = dbc.Fade(
+    dbc.Card([
+
+        html.H4("Regular Season stats", className="card-title"),
+
+        dash_table.DataTable(
+            id='player-reg-season-games-table',
+            columns=[],
+            data=[{}],
+            page_size=5
+        ),
+    ]),
+    id="card-player-reg-season-games-table-fade",
+    is_in=False,
+    appear=False
+)
+
+# game-log card
+card_game_log = dbc.Card([
+
+    html.H3(id='games-logs-table-name', className="card-title"),
+
+    # dbc.Table("", id='games-logs-table', striped=True, bordered=True, hover=True)
+
+    dash_table.DataTable(
+        id='games-logs-table',
+        data=[{}],
+        columns=[],
+        style_table={'overflowX': 'auto'},
+        style_cell={
+                'minWidth': '30px', 'width': '60px', 'maxWidth': '120px',
+                'overflow': 'hidden',
+                'textOverflow': 'ellipsis',
+        },
+        page_size=20
+        )
+
+])
+
+
 layout = html.Div([
     navbar,
 
     # data selection
     dbc.Container([
+
         dbc.Row([
-            # selecting player
-            dbc.Col(html.Div([
-
-                html.H3('Data selection'),
-
-                dcc.Dropdown(
-                    id='player-id-drop',
-                    options=id_dict,
-                    value='player_id',
-                    clearable=False,
-                    placeholder="Select player"
-                ),
-
-                dcc.Dropdown(
-                    id='player-years-drop',
-                    options=[],
-                    value='year',
-                    clearable=False,
-                    placeholder="Select player"
-                ),
-            ]), md=4),
+            # selecting data- player name, season
+            dbc.Col(card_data, width=12, lg=4),
 
             # player info
-            dbc.Col([
-                dbc.Row([
-
-                    dbc.Col(html.Img(id='player-photo', src='')),
-
-                    dbc.Col([
-                        html.H4(children="player-name", id="card-title-player-name"),
-                        dcc.Markdown(children="", id='player-text-info')
-                    ]),
-                ]),
-
-
-            ], md=4),
+            dbc.Col(card_p_info, width=12, lg=4),
 
             # season stats
-            dbc.Col(html.Div([
-                html.H3("Regular Season stats"),
-
-                dash_table.DataTable(
-                        id='player-reg-season-games-table',
-                        columns=[],
-                        data=[{}],
-                        page_size=5
-                        ),
-            ]), md=4),
+            dbc.Col(card_p_seasons, width=12, lg=4),
         ]),
+
+        dbc.Row(dbc.Col(card_game_log, width=12))
+
     ], fluid=True),
-
-    dbc.Row([
-        html.H3(id='table-name'),
-
-        dash_table.DataTable(
-            id='games-logs-table',
-            columns=[],
-            data=[{}],
-            page_size=20
-            ),
-    ]),
 
     footer
 ])
@@ -175,7 +210,9 @@ layout = html.Div([
      Output(component_id='player-reg-season-games-table', component_property='data'),
      Output(component_id='player-photo', component_property='src'),
      Output(component_id='card-title-player-name', component_property='children'),
-     Output(component_id='player-text-info', component_property='children')],
+     Output(component_id='player-text-info', component_property='children'),
+     Output(component_id='card-title-player-info-fade', component_property='is_in'),
+     Output(component_id='card-player-reg-season-games-table-fade', component_property='is_in')],
     Input(component_id='player-id-drop', component_property='value'))
 def update_year_dropdown(player_id):
     """
@@ -185,8 +222,10 @@ def update_year_dropdown(player_id):
     [{'label': 1991-1992, 'value': 1991-1992}, {'label': 1992-1993, 'value': 1992-1993}]
     """
     global df_ids, df_reg_s
+
+    # if invalid name inputted apply no changes
     if player_id == 'player_id':
-        return no_update, no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update
     else:
         # regular season game stats
         df_reg_s, player_photo_src, player_name, mk_text = get_season_stats(player_id)
@@ -201,13 +240,13 @@ def update_year_dropdown(player_id):
         table_data = df_reg_s[col_names].to_dict('records')
         col_names = [{"name": i, "id": i} for i in col_names]
 
-        return season, col_names, table_data, player_photo_src, player_name, mk_text
+        return season, col_names, table_data, player_photo_src, player_name, mk_text, True, True
 
 
 @app.callback(
     [Output(component_id='games-logs-table', component_property='columns'),
      Output(component_id='games-logs-table', component_property='data'),
-     Output(component_id='table-name', component_property='children')],
+     Output(component_id='games-logs-table-name', component_property='children')],
     [Input(component_id='player-id-drop', component_property='value'),
      Input(component_id='player-years-drop', component_property='value')],
     prevent_initial_call=True
@@ -231,8 +270,13 @@ def update_game_log_table(player_id, season):
             # return only reg. season game logs
             df_games = clean_df(tables[-1])
 
+            # table_header = [html.Thead([html.Th(_) for _ in df_games.columns])]
+
+            # table_body = [html.Tbody([html.Tr([html.Td(value) for value in row]) for row in df_games.values])]
+
             # create dictionary for table and list with column names
             table_data = df_games.to_dict('records')
+
             # print(df_games.columns)
             col_names = [{"name": i, "id": i} for i in df_games.columns]
 
