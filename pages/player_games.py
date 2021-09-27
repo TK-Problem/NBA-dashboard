@@ -5,7 +5,7 @@ from dash import dash_table
 import dash_bootstrap_components as dbc
 
 from app import app
-from utils import navbar, footer
+from utils import navbar, footer, html_2_table
 
 import pandas as pd
 import requests
@@ -13,10 +13,12 @@ from bs4 import BeautifulSoup
 
 # player ids and year range when they were in the league
 df_ids = pd.read_csv('data/player_ids.csv', index_col=0)
-# DataFrame to store information about all games in specific season
-df_games = pd.DataFrame()
-# DataFrame to store information about average stats in regular season
+# DataFrame to store information about all games in reg. season and play-offs
+df_reg_games = pd.DataFrame()
+df_po_games = pd.DataFrame()
+# DataFrame to store information about average stats in regular season and play-offs
 df_reg_s = pd.DataFrame()
+df_po_s = pd.DataFrame()
 # generate player id dictionary for dropdown list
 id_dict = [{'label': _[0], 'value': _[1]} for _ in df_ids.values]
 
@@ -62,13 +64,14 @@ def get_season_stats(player_id):
         except KeyError:
             pass
 
-    # table element for regular season stats
-    table = soup.find('div', {'id': 'all_per_game-playoffs_per_game'}).table
+    # table with regular season stats
+    table_rs = soup.find('table', {'id': 'per_game'})
+    df_rs = html_2_table(table_rs)
+    # table with play-off stats
+    table_po = soup.find('table', {'id': 'playoffs_per_game'})
+    df_po = html_2_table(table_po)
 
-    col_names = [_.text for _ in table.thead.findAll('th')]
-    table_data = [[_.text for _ in row] for row in table.findAll('tr', {'class': 'full_table'})]
-
-    return pd.DataFrame(table_data, columns=col_names), player_photo_src, player_name, mk_text
+    return df_rs, df_po, player_photo_src, player_name, mk_text
 
 
 # helper functions
@@ -140,16 +143,26 @@ card_p_info = dbc.Fade(
 
 # player season stats card
 card_p_seasons = dbc.Fade(
-    dbc.Card([
+    dbc.Card([dbc.Tabs([
 
         html.H4("Regular Season stats", className="card-title"),
 
-        dash_table.DataTable(
-            id='player-reg-season-games-table',
-            columns=[],
-            data=[{}],
-            page_size=5
-        ),
+        dbc.Tab(
+            dash_table.DataTable(
+                id='player-reg-season-games-table',
+                columns=[],
+                data=[{}],
+                page_size=5),
+            label='Regular season game-logs'),
+
+        dbc.Tab(
+            dash_table.DataTable(
+                id='player-po-games-table',
+                columns=[],
+                data=[{}],
+                page_size=5),
+            label='Play-off game-logs')
+        ])
     ]),
     id="card-player-reg-season-games-table-fade",
     is_in=False,
@@ -157,25 +170,23 @@ card_p_seasons = dbc.Fade(
 )
 
 # game-log card
-card_game_log = dbc.Card([
+game_log_tabs = dbc.Tabs([
 
-    html.H3(id='games-logs-table-name', className="card-title"),
-
-    # dbc.Table("", id='games-logs-table', striped=True, bordered=True, hover=True)
-
-    dash_table.DataTable(
-        id='games-logs-table',
-        data=[{}],
-        columns=[],
-        style_table={'overflowX': 'auto'},
-        style_cell={
-                'minWidth': '30px', 'width': '60px', 'maxWidth': '120px',
-                'overflow': 'hidden',
-                'textOverflow': 'ellipsis',
-        },
-        page_size=20
-        )
-
+    dbc.Tab([
+        html.H4(id='games-logs-table-name', className="card-title"),
+        dash_table.DataTable(
+            id='games-logs-table',
+            data=[{}],
+            columns=[],
+            style_table={'overflowX': 'auto'},
+            style_cell={
+                    'minWidth': '30px', 'width': '60px', 'maxWidth': '120px',
+                    'overflow': 'hidden',
+                    'textOverflow': 'ellipsis',
+            },
+            page_size=20)],
+            label='Regular season game-logs'),
+    # dbc.Tab(tab_po, label='Play-off game-logs')
 ])
 
 
@@ -196,7 +207,7 @@ layout = html.Div([
             dbc.Col(card_p_seasons, width=12, lg=4),
         ]),
 
-        dbc.Row(dbc.Col(card_game_log, width=12))
+        dbc.Row(dbc.Col(game_log_tabs, width=12))
 
     ], fluid=True),
 
@@ -204,15 +215,18 @@ layout = html.Div([
 ])
 
 
-@app.callback(
-    [Output(component_id='player-years-drop', component_property='options'),
-     Output(component_id='player-reg-season-games-table', component_property='columns'),
-     Output(component_id='player-reg-season-games-table', component_property='data'),
-     Output(component_id='player-photo', component_property='src'),
-     Output(component_id='card-title-player-name', component_property='children'),
-     Output(component_id='player-text-info', component_property='children'),
-     Output(component_id='card-title-player-info-fade', component_property='is_in'),
-     Output(component_id='card-player-reg-season-games-table-fade', component_property='is_in')],
+@app.callback([
+    Output(component_id='player-years-drop', component_property='options'),
+    Output(component_id='player-reg-season-games-table', component_property='columns'),
+    Output(component_id='player-reg-season-games-table', component_property='data'),
+    Output(component_id='player-po-games-table', component_property='columns'),
+    Output(component_id='player-po-games-table', component_property='data'),
+    Output(component_id='player-photo', component_property='src'),
+    Output(component_id='card-title-player-name', component_property='children'),
+    Output(component_id='player-text-info', component_property='children'),
+    Output(component_id='card-title-player-info-fade', component_property='is_in'),
+    Output(component_id='card-player-reg-season-games-table-fade', component_property='is_in')
+],
     Input(component_id='player-id-drop', component_property='value'))
 def update_year_dropdown(player_id):
     """
@@ -221,14 +235,14 @@ def update_year_dropdown(player_id):
     :return: list with dictionary inside, e.g.
     [{'label': 1991-1992, 'value': 1991-1992}, {'label': 1992-1993, 'value': 1992-1993}]
     """
-    global df_ids, df_reg_s
+    global df_ids, df_reg_s, df_po_s
 
     # if invalid name inputted apply no changes
     if player_id == 'player_id':
-        return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update
     else:
         # regular season game stats
-        df_reg_s, player_photo_src, player_name, mk_text = get_season_stats(player_id)
+        df_reg_s, df_po_s, player_photo_src, player_name, mk_text = get_season_stats(player_id)
 
         # seasons played for dropdown menu
         season = [{'label': _, 'value': _} for _ in df_reg_s.Season]
@@ -236,11 +250,21 @@ def update_year_dropdown(player_id):
         # return only specific columns
         col_names = ['Season', 'G', 'MP', 'PTS']
 
-        # season avg. stats
-        table_data = df_reg_s[col_names].to_dict('records')
+        # regular season avg. stats
+        if len(df_reg_s) > 0:
+            table_data_reg = df_reg_s[col_names].to_dict('records')
+        else:
+            table_data_reg = [{}]
+
+        # play-off season avg. stats
+        if len(df_po_s) > 0:
+            table_data_po = df_po_s[col_names].to_dict('records')
+        else:
+            table_data_po = [{}]
+
         col_names = [{"name": i, "id": i} for i in col_names]
 
-        return season, col_names, table_data, player_photo_src, player_name, mk_text, True, True
+        return season, col_names, table_data_reg, col_names, table_data_po, player_photo_src, player_name, mk_text, True, True
 
 
 @app.callback(
@@ -258,7 +282,7 @@ def update_game_log_table(player_id, season):
     :param season: int
     :return: column names, table data for 'games-table' object and table title for text object
     """
-    global df_games, df_ids
+    global df_reg_games, df_po_games, df_ids
 
     if player_id != 'player_id' and season != 'year':
 
@@ -268,17 +292,13 @@ def update_game_log_table(player_id, season):
             # read all tables in the page
             tables = pd.read_html(url)
             # return only reg. season game logs
-            df_games = clean_df(tables[-1])
-
-            # table_header = [html.Thead([html.Th(_) for _ in df_games.columns])]
-
-            # table_body = [html.Tbody([html.Tr([html.Td(value) for value in row]) for row in df_games.values])]
+            df_reg_games = clean_df(tables[-1])
 
             # create dictionary for table and list with column names
-            table_data = df_games.to_dict('records')
+            table_data = df_reg_games.to_dict('records')
 
             # print(df_games.columns)
-            col_names = [{"name": i, "id": i} for i in df_games.columns]
+            col_names = [{"name": i, "id": i} for i in df_reg_games.columns]
 
             # return player name from df_ids DataFrame
             player_name = df_ids.loc[df_ids.Player_ID == player_id, 'Player_name'].values[0]

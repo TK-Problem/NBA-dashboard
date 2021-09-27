@@ -1,4 +1,5 @@
 import dash_bootstrap_components as dbc
+import pandas as pd
 from dash import html
 
 navbar = dbc.NavbarSimple(
@@ -23,3 +24,21 @@ footer = html.Footer(
     ),
     className='card text-white bg-primary mb-3'
 )
+
+
+# helper functions
+def html_2_table(table):
+    """
+    Read HTML code tor return DataFrame
+    Input:
+        table- bs4 element,
+    Output:
+        pandas DataFrame
+    """
+    try:
+        col_names = [_.text for _ in table.thead.findAll('th')]
+        table_data = [[_.text for _ in row] for row in table.findAll('tr', {'class': 'full_table'})]
+    except AttributeError:
+        return pd.DataFrame()
+    else:
+        return pd.DataFrame(table_data, columns=col_names)
