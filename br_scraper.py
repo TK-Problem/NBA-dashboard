@@ -119,9 +119,18 @@ def get_season_stats(player_id):
 
     # table with regular season stats
     table_rs = soup.find('table', {'id': 'per_game'})
+    # if table_rs:
+    #     df_rs = pd.read_html(str(table_rs))[0]
+    #     df_rs = df_rs[~df_rs.Pos.isna()]
+    # else:
+    #     df_rs = pd.DataFrane()
     df_rs = html_2_table_season_stats(table_rs)
+
     # table with play-off stats
     table_po = soup.find('table', {'id': 'playoffs_per_game'})
     df_po = html_2_table_season_stats(table_po)
 
-    return df_rs, df_po, player_photo_src, player_name, mk_text
+    # generate list for all info about player
+    player_info = [player_photo_src, player_name, mk_text]
+
+    return df_rs, df_po, player_info

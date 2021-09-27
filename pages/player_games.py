@@ -47,8 +47,7 @@ card_data = dbc.Card([
 ])
 
 # player info card
-card_p_info = dbc.Fade(
-    dbc.Card([
+card_p_info = dbc.Card([
         dbc.Row([
 
             dbc.Col(html.Img(id='player-photo', src=''), align="center", sm=3),
@@ -58,15 +57,10 @@ card_p_info = dbc.Fade(
                 dcc.Markdown(children="", id='player-text-info')
             ], sm=7),
         ], justify="center"),
-    ]),
-    id="card-title-player-info-fade",
-    is_in=False,
-    appear=False
-)
+    ])
 
 # player season stats card
-card_p_seasons = dbc.Fade(
-    dbc.Card([
+card_p_seasons = dbc.Card([
 
         dbc.Tabs([
             dbc.Tab(
@@ -75,7 +69,7 @@ card_p_seasons = dbc.Fade(
                     columns=[],
                     data=[{}],
                     page_size=5),
-                label='Regular season game-logs'),
+                label='Regular season avg. stats'),
 
             dbc.Tab(
                 dash_table.DataTable(
@@ -83,13 +77,9 @@ card_p_seasons = dbc.Fade(
                     columns=[],
                     data=[{}],
                     page_size=5),
-                label='Play-off game-logs')
+                label='Play-off avg. stats')
             ])
-    ]),
-    id="card-player-reg-season-games-table-fade",
-    is_in=False,
-    appear=False
-)
+    ])
 
 # game-log card
 game_log_tabs = dbc.Tabs([
@@ -154,64 +144,64 @@ layout = html.Div([
     Output(component_id='player-photo', component_property='src'),
     Output(component_id='card-title-player-name', component_property='children'),
     Output(component_id='player-text-info', component_property='children'),
-    Output(component_id='card-title-player-info-fade', component_property='is_in'),
-    Output(component_id='card-player-reg-season-games-table-fade', component_property='is_in')
+    Output(component_id='player-reg-season-games-table', component_property='columns'),
+    Output(component_id='player-reg-season-games-table', component_property='data'),
+    Output(component_id='player-po-games-table', component_property='columns'),
+    Output(component_id='player-po-games-table', component_property='data')
 ],
     Input(component_id='player-id-drop', component_property='value'))
 def update_year_dropdown(player_id):
+    global df_reg_s, df_po_s
     """
     Returns year range, e.g. from 1991 to 1997, for year drop down menu
     :param player_id: string
     :return:
         * list with dictionary inside, e.g.
-        [{'label': 1991-1992, 'value': 1991-1992}, {'label': 1992-1993, 'value': 1992-1993}]
-        * string, url link to image source
-        * string, player name
-        * string, extra info about player as markdown text
+        [{'label': 1991-1992, 'value': 1991-1992}, {'label': 1992-1993, 'value': 1992-1993}],
+        * string, url link to image source,
+        * string, player name,
+        * string, extra info about player as markdown text,
+        * list,
+        * list,
+        * list,
+        * list,
     """
     global df_reg_s, df_po_s
 
     # if invalid name inputted apply no changes
     if player_id == 'player_id':
-        return no_update, no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update
     else:
         # regular season game stats
-        df_reg_s, df_po_s, player_photo_src, player_name, mk_text = get_season_stats(player_id)
+        df_reg_s, df_po_s, player_info = get_season_stats(player_id)
+
+        # extract values
+        player_photo_src = player_info[0]
+        player_name = player_info[1]
+        mk_text = player_info[2]
+
+        # return only specific columns
+        col_names = ['Season', 'G', 'MP', 'PTS']
+
+        # regular season avg. stats
+        if len(df_reg_s) > 0:
+            table_data_reg = df_reg_s[col_names].to_dict('records')
+        else:
+            table_data_reg = [{}]
+
+        # play-off season avg. stats
+        if len(df_po_s) > 0:
+            table_data_po = df_po_s[col_names].to_dict('records')
+        else:
+            table_data_po = [{}]
+
+        # format column names for dash
+        col_names = [{"name": i, "id": i} for i in col_names]
 
         # seasons played for dropdown menu
         season = [{'label': _, 'value': _} for _ in df_reg_s.Season]
 
-        return season, player_photo_src, player_name, mk_text, True, True
-
-
-@app.callback([
-    Output(component_id='player-reg-season-games-table', component_property='columns'),
-    Output(component_id='player-reg-season-games-table', component_property='data'),
-    Output(component_id='player-po-games-table', component_property='columns'),
-    Output(component_id='player-po-games-table', component_property='data'),
-],
-    Input(component_id='player-years-drop', component_property='options'))
-def update_stats_df(season):
-    global df_reg_s, df_po_s
-
-    # return only specific columns
-    col_names = ['Season', 'G', 'MP', 'PTS']
-
-    # regular season avg. stats
-    if len(df_reg_s) > 0:
-        table_data_reg = df_reg_s[col_names].to_dict('records')
-    else:
-        table_data_reg = [{}]
-
-    # play-off season avg. stats
-    if len(df_po_s) > 0:
-        table_data_po = df_po_s[col_names].to_dict('records')
-    else:
-        table_data_po = [{}]
-
-    col_names = [{"name": i, "id": i} for i in col_names]
-
-    return col_names, table_data_reg, col_names, table_data_po
+        return season, player_photo_src, player_name, mk_text, col_names, table_data_reg, col_names, table_data_po
 
 
 @app.callback([
