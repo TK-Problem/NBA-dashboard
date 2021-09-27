@@ -25,11 +25,9 @@ def get_gamelogs(player_id, season, playoffs=False):
     table = soup.table
 
     if table:
-        df_game_logs = pd.read_html(str(table))[0]
+        return clean_df(pd.read_html(str(table))[0])
     else:
-        df_game_logs = pd.DataFrame()
-
-    return clean_df(df_game_logs)
+        return pd.DataFrame()
 
 
 # helper functions
@@ -119,11 +117,6 @@ def get_season_stats(player_id):
 
     # table with regular season stats
     table_rs = soup.find('table', {'id': 'per_game'})
-    # if table_rs:
-    #     df_rs = pd.read_html(str(table_rs))[0]
-    #     df_rs = df_rs[~df_rs.Pos.isna()]
-    # else:
-    #     df_rs = pd.DataFrane()
     df_rs = html_2_table_season_stats(table_rs)
 
     # table with play-off stats

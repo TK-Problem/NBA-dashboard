@@ -7,15 +7,18 @@ import dash_bootstrap_components as dbc
 from app import app
 from utils import navbar, footer
 from br_scraper import get_gamelogs, get_season_stats
+from figures_player import fig_dict
 
 import pandas as pd
 
 
 # player ids and year range when they were in the league
 df_ids = pd.read_csv('data/player_ids.csv', index_col=0)
-# DataFrame to store information about all games in reg. season and play-offs
+
+# DataFrame to store game-logs about all games in reg. season and play-offs
 df_reg_games = pd.DataFrame()
 df_po_games = pd.DataFrame()
+
 # DataFrame to store information about average stats in regular season and play-offs
 df_reg_s = pd.DataFrame()
 df_po_s = pd.DataFrame()
@@ -24,62 +27,60 @@ id_dict = [{'label': _[0], 'value': _[1]} for _ in df_ids.values]
 
 
 # data selection card
-card_data = dbc.Card([
-    dbc.CardBody([
-        html.H4('Data selection', className="card-title"),
+data_selection = html.Div([
+    html.H4('Data selection', className="card-title"),
 
-        dcc.Dropdown(
-            id='player-id-drop',
-            options=id_dict,
-            value='player_id',
-            clearable=False,
-            placeholder="Select player"
-            ),
+    dcc.Dropdown(
+        id='player-id-drop',
+        options=id_dict,
+        value='player_id',
+        clearable=False,
+        placeholder="Select player"
+        ),
 
-        dcc.Dropdown(
-            id='player-years-drop',
-            options=[],
-            value='year',
-            clearable=False,
-            placeholder="Select season"
-            ),
-    ])
+    dcc.Dropdown(
+        id='player-years-drop',
+        options=[],
+        value='year',
+        clearable=False,
+        placeholder="Select season"
+        )
 ])
 
+
 # player info card
-card_p_info = dbc.Card([
-        dbc.Row([
+player_info_card = html.Div(
+    dbc.Row([
+        dbc.Col(html.Img(id='player-photo', src=''), align="center", sm=3),
 
-            dbc.Col(html.Img(id='player-photo', src=''), align="center", sm=3),
-
-            dbc.Col([
-                html.H4(children="", id="card-title-player-name", className="card-title"),
-                dcc.Markdown(children="", id='player-text-info')
-            ], sm=7),
-        ], justify="center"),
-    ])
+        dbc.Col([
+            html.H4(children="", id="card-title-player-name", className="card-title"),
+            dcc.Markdown(children="", id='player-text-info')
+        ], sm=7),
+    ], justify="center")
+)
 
 # player season stats card
-card_p_seasons = dbc.Card([
+seasons_stats = html.Div(
+    dbc.Tabs([
 
-        dbc.Tabs([
-            dbc.Tab(
-                dash_table.DataTable(
-                    id='player-reg-season-games-table',
-                    columns=[],
-                    data=[{}],
-                    page_size=5),
-                label='Regular season avg. stats'),
+        dbc.Tab(
+            dash_table.DataTable(
+                id='player-reg-season-games-table',
+                columns=[],
+                data=[{}],
+                page_size=5),
+            label='Regular season avg. stats'),
 
-            dbc.Tab(
-                dash_table.DataTable(
-                    id='player-po-games-table',
-                    columns=[],
-                    data=[{}],
-                    page_size=5),
-                label='Play-off avg. stats')
-            ])
+        dbc.Tab(
+            dash_table.DataTable(
+                id='player-po-games-table',
+                columns=[],
+                data=[{}],
+                page_size=5),
+            label='Play-off avg. stats')
     ])
+)
 
 # game-log card
 game_log_tabs = dbc.Tabs([
@@ -113,6 +114,38 @@ game_log_tabs = dbc.Tabs([
             label='Play-offs game-logs'),
 ])
 
+# available figures
+
+
+# different figures
+def gen_figure_item(i):
+    """
+    Returns column html code for plotting various figures
+    :param i: int
+    :return: HTML code
+    """
+
+    return html.Div([
+
+        html.H4(children="", id=f"fig-{i}-title", className="card-title"),
+
+        dcc.Graph(id=f'fig-{i}'),
+
+        dcc.Dropdown(
+            id=f'fig-{i}-data-type',
+            options=[],
+            clearable=False,
+            placeholder="Select data"
+        ),
+
+        dcc.Dropdown(
+            id=f'fig-{i}-fig-type',
+            options=[],
+            clearable=False,
+            placeholder="Select figure"
+        ),
+    ])
+
 
 layout = html.Div([
     navbar,
@@ -122,13 +155,24 @@ layout = html.Div([
 
         dbc.Row([
             # selecting data- player name, season
-            dbc.Col(card_data, width=12, lg=4),
+            dbc.Col(data_selection, width=12, lg=4),
 
             # player info
-            dbc.Col(card_p_info, width=12, lg=4),
+            dbc.Col(player_info_card, width=12, lg=4),
 
             # season stats
-            dbc.Col(card_p_seasons, width=12, lg=4),
+            dbc.Col(seasons_stats, width=12, lg=4),
+        ]),
+
+        dbc.Row([
+            # figure 1
+            dbc.Col(gen_figure_item(1), width=12, lg=4),
+
+            # # figure 2
+            dbc.Col(gen_figure_item(2), width=12, lg=4),
+            #
+            # # figure 3
+            dbc.Col(gen_figure_item(3), width=12, lg=4),
         ]),
 
         dbc.Row(dbc.Col(game_log_tabs, width=12))
@@ -214,7 +258,7 @@ def update_year_dropdown(player_id):
      Input(component_id='player-years-drop', component_property='value')],
     prevent_initial_call=True
 )
-def update_game_log_table(player_id, season):
+def update_game_log_tables(player_id, season):
     """
     Loads player's game for specific season as pandas DataFrame
     :param player_id: string,
@@ -240,3 +284,110 @@ def update_game_log_table(player_id, season):
     else:
         # no updates if input is not full
         return no_update, no_update, no_update, no_update
+
+
+@app.callback([Output(f'fig-{i}-data-type', 'options') for i in range(1, 4)],
+              [Input(component_id='reg_s_game-logs-table', component_property='data'),
+               Input(component_id='po_game-logs-table', component_property='data')],
+              prevent_initial_call=True)
+def update_figure_data_dropdowns(_df1, _df2):
+    """
+
+    :param _df1: regular season DataFrame values
+    :param _df2: play-off DataFrame values
+    :return: return lists with dictionaries for drop down menus
+    """
+    if len(_df1) > 0:
+        drop_values = [{'label': 'Regular season', 'value': 'Regular season'}]
+    else:
+        drop_values = []
+
+    if len(_df2) > 0:
+        drop_values += [{'label': 'Play-off', 'value': 'Play-off'}]
+
+    return drop_values, drop_values, drop_values
+
+
+@app.callback([Output(f'fig-{i}-fig-type', 'options') for i in range(1, 4)],
+              [Input(f'fig-{i}-data-type', 'value') for i in range(1, 4)],
+              prevent_initial_call=True)
+def update_figure_graph_dropdowns(fig_1_data, fig_2_data, fig_3_data):
+    """
+
+    :param fig_1_data:
+    :param fig_2_data:
+    :param fig_3_data:
+    :return: return lists with dictionaries for drop down menus
+    """
+    options = [{'label': _, 'value': _} for _ in fig_dict.keys()]
+
+    return options, options, options
+
+
+@app.callback(Output(f'fig-1', 'figure'),
+              [Input(f'fig-1-data-type', 'value'),
+               Input(f'fig-1-fig-type', 'value')],
+              prevent_initial_call=True)
+def update_fig_1(fig_dtype, fig_type):
+    """
+
+    :param fig_dtype:
+    :param fig_type:
+    :return:
+    """
+    if fig_dtype == 'Regular season':
+        df = df_reg_games.copy()
+    else:
+        df = df_po_games.copy()
+
+    if fig_type is not None:
+        fig_func = fig_dict[fig_type]
+        return fig_func(df)
+
+    return no_update
+
+
+@app.callback(Output(f'fig-2', 'figure'),
+              [Input(f'fig-2-data-type', 'value'),
+               Input(f'fig-2-fig-type', 'value')],
+              prevent_initial_call=True)
+def update_fig_2(fig_dtype, fig_type):
+    """
+
+    :param fig_dtype:
+    :param fig_type:
+    :return:
+    """
+    if fig_dtype == 'Regular season':
+        df = df_reg_games.copy()
+    else:
+        df = df_po_games.copy()
+
+    if fig_type is not None:
+        fig_func = fig_dict[fig_type]
+        return fig_func(df)
+
+    return no_update
+
+
+@app.callback(Output(f'fig-3', 'figure'),
+              [Input(f'fig-3-data-type', 'value'),
+               Input(f'fig-3-fig-type', 'value')],
+              prevent_initial_call=True)
+def update_fig_3(fig_dtype, fig_type):
+    """
+
+    :param fig_dtype:
+    :param fig_type:
+    :return:
+    """
+    if fig_dtype == 'Regular season':
+        df = df_reg_games.copy()
+    else:
+        df = df_po_games.copy()
+
+    if fig_type is not None:
+        fig_func = fig_dict[fig_type]
+        return fig_func(df)
+
+    return no_update
